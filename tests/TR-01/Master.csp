@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My App</title>
+    <%view "Head"%>
+</head>
+<body>
+    <div id="sidebar">
+        <%include "Shared/Sidebar.csp"%>
+    </div>
+    <div id="content">
+        <%view "Content"%>
+    </div>
+    <div id="footer">
+        <%view "Footer"%>
+    </div>
+</body>
+</html>
