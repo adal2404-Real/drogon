@@ -29,6 +29,7 @@ static const std::string cxx_output = "$$";
 static const std::string cxx_val_start = "[[";
 static const std::string cxx_val_end = "]]";
 static const std::string sub_view_start = "<%view";
+static const std::string sub_view_include = "<%include";
 static const std::string sub_view_end = "%>";
 
 using namespace drogon_ctl;
@@ -164,6 +165,44 @@ static void parseLine(std::ofstream &oSrcFile,
                     outputVal(oSrcFile, streamName, viewDataName, keyName);
                     std::string tailLine =
                         newLine.substr(pos + cxx_val_end.length());
+                    parseLine(oSrcFile,
+                              tailLine,
+                              streamName,
+                              viewDataName,
+                              cxx_flag,
+                              returnFlag);
+                }
+                else
+                {
+                    std::cerr << "format err!" << std::endl;
+                    exit(1);
+                }
+            }
+            else if ((pos = line.find(sub_view_include)) != std::string::npos)
+            {
+                std::string oldLine = line.substr(0, pos);
+                parseLine(
+                    oSrcFile, oldLine, streamName, viewDataName, cxx_flag, 0);
+                std::string newLine =
+                    line.substr(pos + sub_view_include.length());
+                if ((pos = newLine.find(sub_view_end)) != std::string::npos)
+                {
+                    std::string keyName = newLine.substr(0, pos);
+                    auto iter = keyName.begin();
+                    while (iter != keyName.end() && *iter == ' ')
+                        ++iter;
+                    auto iterEnd = iter;
+                    while (iterEnd != keyName.end() && *iterEnd != ' ')
+                        ++iterEnd;
+                    keyName = std::string(iter, iterEnd);
+                    if (keyName.length() >= 2 && keyName.front() == '"' &&
+                        keyName.back() == '"')
+                    {
+                        keyName = keyName.substr(1, keyName.length() - 2);
+                    }
+                    outputSubView(oSrcFile, streamName, viewDataName, keyName);
+                    std::string tailLine =
+                        newLine.substr(pos + sub_view_end.length());
                     parseLine(oSrcFile,
                               tailLine,
                               streamName,
@@ -435,6 +474,11 @@ void create_view::newViewSourceFile(std::ofstream &file,
             if (results.size() > 1)
             {
                 layoutName = results[1].str();
+                if (layoutName.length() >= 2 && layoutName.front() == '"' &&
+                    layoutName.back() == '"')
+                {
+                    layoutName = layoutName.substr(1, layoutName.length() - 2);
+                }
                 break;
             }
         }
@@ -455,18 +499,29 @@ void create_view::newViewSourceFile(std::ofstream &file,
                            [](unsigned char c) { return tolower(c); });
             if ((pos = lowerBuffer.find(cxx_include)) != std::string::npos)
             {
-                // std::cout<<"haha find it!"<<endl;
-                std::string newLine = buffer.substr(pos + cxx_include.length());
-                import_flag = true;
-                if ((pos = newLine.find(cxx_end)) != std::string::npos)
+                // check if it is <%include
+                if (lowerBuffer.substr(pos, sub_view_include.length()) ==
+                    sub_view_include)
                 {
-                    newLine = newLine.substr(0, pos);
-                    file << newLine << "\n";
-                    break;
+                    // It is a partial view include, not a C++ header include.
+                    // So we treat it as normal text in the first pass
                 }
                 else
                 {
-                    file << newLine << "\n";
+                    // std::cout<<"haha find it!"<<endl;
+                    std::string newLine =
+                        buffer.substr(pos + cxx_include.length());
+                    import_flag = true;
+                    if ((pos = newLine.find(cxx_end)) != std::string::npos)
+                    {
+                        newLine = newLine.substr(0, pos);
+                        file << newLine << "\n";
+                        break;
+                    }
+                    else
+                    {
+                        file << newLine << "\n";
+                    }
                 }
             }
         }
