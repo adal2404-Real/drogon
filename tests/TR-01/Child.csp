@@ -1,0 +1,11 @@
+<%layout "tests/TR-01/Master.csp"%>
+<%section "Head"%>
+    <meta charset="utf-8">
+<%end_section%>
+<%section "Content"%>
+    <h1>Welcome</h1>
+    <p>This is the content.</p>
+<%end_section%>
+<%section "Footer"%>
+    Copyright 2023
+<%end_section%>
