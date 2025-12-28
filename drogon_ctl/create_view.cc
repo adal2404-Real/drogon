@@ -30,6 +30,10 @@ static const std::string cxx_val_start = "[[";
 static const std::string cxx_val_end = "]]";
 static const std::string sub_view_start = "<%view";
 static const std::string sub_view_end = "%>";
+static const std::string include_start = "<%include";
+static const std::string include_end = "%>";
+static const std::string section_start = "<%section";
+static const std::string section_end = "<%endsection%>";
 
 using namespace drogon_ctl;
 
@@ -164,6 +168,48 @@ static void parseLine(std::ofstream &oSrcFile,
                     outputVal(oSrcFile, streamName, viewDataName, keyName);
                     std::string tailLine =
                         newLine.substr(pos + cxx_val_end.length());
+                    parseLine(oSrcFile,
+                              tailLine,
+                              streamName,
+                              viewDataName,
+                              cxx_flag,
+                              returnFlag);
+                }
+                else
+                {
+                    std::cerr << "format err!" << std::endl;
+                    exit(1);
+                }
+            }
+            else if ((pos = line.find(include_start)) != std::string::npos)
+            {
+                std::string oldLine = line.substr(0, pos);
+                parseLine(
+                    oSrcFile, oldLine, streamName, viewDataName, cxx_flag, 0);
+                std::string newLine =
+                    line.substr(pos + include_start.length());
+                if ((pos = newLine.find(include_end)) != std::string::npos)
+                {
+                    std::string keyName = newLine.substr(0, pos);
+                    auto iter = keyName.begin();
+                    while (iter != keyName.end() && *iter == ' ')
+                        ++iter;
+                    auto iterEnd = iter;
+                    while (iterEnd != keyName.end() && *iterEnd != ' ')
+                        ++iterEnd;
+                    keyName = std::string(iter, iterEnd);
+                    if (keyName.length() >= 2 && keyName.front() == '"' && keyName.back() == '"')
+                    {
+                        keyName = keyName.substr(1, keyName.length() - 2);
+                        outputSubView(oSrcFile, streamName, viewDataName, keyName);
+                    }
+                    else
+                    {
+                        std::cerr << "format err!" << std::endl;
+                        exit(1);
+                    }
+                    std::string tailLine =
+                        newLine.substr(pos + include_end.length());
                     parseLine(oSrcFile,
                               tailLine,
                               streamName,
@@ -426,7 +472,7 @@ void create_view::newViewSourceFile(std::ofstream &file,
 
     // Find layout tag
     std::string layoutName;
-    std::regex layoutReg("<%layout[ \\t]+(((?!%\\}).)*[^ \\t])[ \\t]*%>");
+    std::regex layoutReg("<%layout[ \\t]+(((?!%>).)*[^ \\t])[ \\t]*%>");
     for (std::string buffer; std::getline(infile, buffer);)
     {
         std::smatch results;
@@ -453,7 +499,8 @@ void create_view::newViewSourceFile(std::ofstream &file,
                            lowerBuffer.end(),
                            lowerBuffer.begin(),
                            [](unsigned char c) { return tolower(c); });
-            if ((pos = lowerBuffer.find(cxx_include)) != std::string::npos)
+            if ((pos = lowerBuffer.find(cxx_include)) != std::string::npos &&
+                lowerBuffer.find(include_start) != pos)
             {
                 // std::cout<<"haha find it!"<<endl;
                 std::string newLine = buffer.substr(pos + cxx_include.length());
@@ -520,6 +567,12 @@ void create_view::newViewSourceFile(std::ofstream &file,
     // oSrcFile <<"\tstd::string "<<bodyName<<";\n";
     file << "\tdrogon::OStringStream " << streamName << ";\n";
     file << "\tstd::string layoutName{\"" << layoutName << "\"};\n";
+
+    // Support for sections
+    file << "\tstd::map<std::string, std::string> " << className << "_section_map;\n";
+    std::map<std::string, std::string> sectionMap;
+    std::string currentStreamName = streamName;
+
     int cxx_flag = 0;
     for (std::string buffer; std::getline(infile, buffer);)
     {
@@ -530,14 +583,117 @@ void create_view::newViewSourceFile(std::ofstream &file,
             {
                 if (results.size() > 1)
                 {
-                    continue;
+                    // Remove layout tag from buffer but keep processing the line
+                    buffer = std::regex_replace(buffer, layoutReg, "");
+                }
+            }
+
+            if (cxx_flag == 0)
+            {
+                std::string::size_type pos = 0;
+                // Check for section start
+                if ((pos = buffer.find(section_start)) != std::string::npos)
+                {
+                     // We need to parse recursively.
+                     // 1. Parse everything before section_start
+                     std::string prefix = buffer.substr(0, pos);
+                     parseLine(file, prefix, currentStreamName, viewDataName, cxx_flag, 0);
+
+                     // 2. Extract section name
+                     std::string rest = buffer.substr(pos);
+                     std::regex secReg("^" + section_start + "[ \\t]+\"([^\"]+)\"[ \\t]*%>");
+                     std::smatch secMatch;
+                     if (std::regex_search(rest, secMatch, secReg))
+                     {
+                         if (secMatch.size() > 1)
+                         {
+                             std::string secName = secMatch[1].str();
+                             // Generate a unique stream for this section block in local scope
+                             // But we need to save it to _section_map at the end of block
+                             std::string secStream = className + "_section_" + secName;
+                             file << "{\n\tdrogon::OStringStream " << secStream << ";\n";
+
+                             // Update current stream for subsequent lines
+                             currentStreamName = secStream;
+
+                             // Track that this section exists (for completeness, though map handles it)
+                             sectionMap[secName] = secStream;
+
+                             // 3. Process the rest of the line after the tag
+                             std::string afterTag = rest.substr(secMatch[0].length());
+
+                             // Recursive check for end tag on same line
+                             std::string::size_type endPos = afterTag.find(section_end);
+                             if(endPos != std::string::npos)
+                             {
+                                 // Found end tag on same line
+                                 std::string content = afterTag.substr(0, endPos);
+                                 parseLine(file, content, currentStreamName, viewDataName, cxx_flag, 0);
+
+                                 // Close the section
+                                 file << "\t" << className << "_section_map[\"" << secName << "\"] = " << secStream << ".str();\n}\n";
+                                 currentStreamName = streamName; // Restore to main
+
+                                 // Process after end tag
+                                 std::string tail = afterTag.substr(endPos + section_end.length());
+                                 parseLine(file, tail, currentStreamName, viewDataName, cxx_flag);
+                             }
+                             else
+                             {
+                                 // No end tag, just process rest
+                                 parseLine(file, afterTag, currentStreamName, viewDataName, cxx_flag);
+                             }
+                             continue;
+                         }
+                     }
+                }
+                // Check for section end (standalone or not caught above)
+                else if ((pos = buffer.find(section_end)) != std::string::npos)
+                {
+                     // Found section end
+                     std::string prefix = buffer.substr(0, pos);
+                     parseLine(file, prefix, currentStreamName, viewDataName, cxx_flag, 0);
+
+                     // Close the section block
+                     // We need the name of the section we are closing...
+                     // But we just opened a block `{`.
+                     // So we need to find the name from our `sectionMap`?
+                     // No, we opened a block `{ drogon::OStringStream secStream; ...`
+                     // So `secStream` is in scope.
+                     // But we don't know the NAME of the variable `secStream` easily here without tracking stack.
+                     // However, `currentStreamName` IS `secStream`.
+
+                     // We need the section NAME (key) to assign to map.
+                     // `sectionMap` stores name -> streamName.
+                     // We can reverse lookup or track stack.
+                     // Let's iterate `sectionMap` to find key for `currentStreamName`.
+
+                     std::string secName;
+                     for(auto &pair : sectionMap) {
+                         if(pair.second == currentStreamName) {
+                             secName = pair.first;
+                             break;
+                         }
+                     }
+
+                     if(!secName.empty()) {
+                         file << "\t" << className << "_section_map[\"" << secName << "\"] = " << currentStreamName << ".str();\n}\n";
+                     } else {
+                         // Error or mismatch
+                     }
+
+                     currentStreamName = streamName;
+
+                     std::string tail = buffer.substr(pos + section_end.length());
+                     parseLine(file, tail, currentStreamName, viewDataName, cxx_flag);
+                     continue;
                 }
             }
 
             std::regex re("\\{%[ \\t]*(((?!%\\}).)*[^ \\t])[ \\t]*%\\}");
             buffer = std::regex_replace(buffer, re, "<%c++$$$$<<$1;%>");
         }
-        parseLine(file, buffer, streamName, viewDataName, cxx_flag);
+        parseLine(file, buffer, currentStreamName, viewDataName, cxx_flag);
     }
     file << "if(layoutName.empty())\n{\n";
     file << "std::string ret{std::move(" << streamName << ".str())};\n";
@@ -549,6 +705,9 @@ void create_view::newViewSourceFile(std::ofstream &file,
     file << "if(!str.empty() && str[str.length()-1] == '\\n') "
             "str.resize(str.length()-1);\n";
     file << "data[\"\"] = std::move(str);\n";
+    file << "for(auto &sec : " << className << "_section_map){\n";
+    file << "    data[sec.first] = sec.second;\n";
+    file << "}\n";
     file << "return templ->genText(data);\n";
     file << "}\n}\n";
 }
