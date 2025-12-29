@@ -25,8 +25,13 @@ std::shared_ptr<DrTemplateBase> DrTemplateBase::newTemplate(
 {
     LOG_TRACE << "http view name=" << templateName;
     auto l = templateName.length();
-    if (l >= 4 && templateName[l - 4] == '.' && templateName[l - 3] == 'c' &&
-        templateName[l - 2] == 's' && templateName[l - 1] == 'p')
+    bool isCsp = (l >= 4 && templateName[l - 4] == '.' &&
+                  templateName[l - 3] == 'c' && templateName[l - 2] == 's' &&
+                  templateName[l - 1] == 'p');
+    bool hasSlash = (templateName.find('/') != std::string::npos ||
+                     templateName.find('\\') != std::string::npos);
+
+    if (isCsp || hasSlash)
     {
         std::string::size_type pos = 0;
         std::string newName;
@@ -40,7 +45,10 @@ std::shared_ptr<DrTemplateBase> DrTemplateBase::newTemplate(
         {
             pos = 2;
         }
-        while (pos < l - 4)
+
+        size_t endPos = isCsp ? l - 4 : l;
+
+        while (pos < endPos)
         {
             if (templateName[pos] == '/' || templateName[pos] == '\\')
             {
