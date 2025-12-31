@@ -20,6 +20,7 @@
 #include <string>
 #include <algorithm>
 #include <regex>
+#include <stack>
 
 static const std::string cxx_include = "<%inc";
 static const std::string cxx_end = "%>";
@@ -30,6 +31,10 @@ static const std::string cxx_val_start = "[[";
 static const std::string cxx_val_end = "]]";
 static const std::string sub_view_start = "<%view";
 static const std::string sub_view_end = "%>";
+static const std::string include_view_start = "<%include";
+static const std::string include_view_end = "%>";
+static const std::string section_start = "<%section";
+static const std::string section_end = "<%endsection";
 
 using namespace drogon_ctl;
 
@@ -103,13 +108,43 @@ static void outputSubView(std::ofstream &oSrcFile,
     oSrcFile << "}\n";
 }
 
+static void outputSectionStart(std::ofstream &oSrcFile,
+                               std::stack<std::pair<std::string, std::string>> &streamStack,
+                               const std::string &sectionName)
+{
+    std::string newStream = "section_" + sectionName + "_stream";
+    oSrcFile << "{\n";
+    oSrcFile << "    drogon::OStringStream " << newStream << ";\n";
+    streamStack.push({newStream, sectionName});
+}
+
+static void outputSectionEnd(std::ofstream &oSrcFile,
+                             std::stack<std::pair<std::string, std::string>> &streamStack,
+                             const std::string &viewDataName)
+{
+    if(streamStack.empty()) return;
+    auto top = streamStack.top();
+    streamStack.pop();
+    std::string currentStream = top.first;
+    std::string sectionName = top.second;
+
+    if (sectionName.empty()) {
+        std::cerr << "Error: Unmatched <%endsection%>" << std::endl;
+        exit(1);
+    }
+
+    oSrcFile << "    " << viewDataName << "[\"" << sectionName << "\"] = " << currentStream << ".str();\n";
+    oSrcFile << "}\n";
+}
+
 static void parseLine(std::ofstream &oSrcFile,
                       std::string &line,
-                      const std::string &streamName,
+                      std::stack<std::pair<std::string, std::string>> &streamStack,
                       const std::string &viewDataName,
                       int &cxx_flag,
                       int returnFlag = 1)
 {
+    std::string streamName = streamStack.top().first;
     std::string::size_type pos(0);
     // std::cout<<line<<"("<<line.length()<<")\n";
     if (line.length() > 0 && line[line.length() - 1] == '\r')
@@ -132,13 +167,13 @@ static void parseLine(std::ofstream &oSrcFile,
             std::string oldLine = line.substr(0, pos);
             if (oldLine.length() > 0)
                 parseLine(
-                    oSrcFile, oldLine, streamName, viewDataName, cxx_flag, 0);
+                    oSrcFile, oldLine, streamStack, viewDataName, cxx_flag, 0);
             std::string newLine = line.substr(pos + cxx_lang.length());
             cxx_flag = 1;
             if (newLine.length() > 0)
                 parseLine(oSrcFile,
                           newLine,
-                          streamName,
+                          streamStack,
                           viewDataName,
                           cxx_flag,
                           returnFlag);
@@ -149,7 +184,7 @@ static void parseLine(std::ofstream &oSrcFile,
             {
                 std::string oldLine = line.substr(0, pos);
                 parseLine(
-                    oSrcFile, oldLine, streamName, viewDataName, cxx_flag, 0);
+                    oSrcFile, oldLine, streamStack, viewDataName, cxx_flag, 0);
                 std::string newLine = line.substr(pos + cxx_val_start.length());
                 if ((pos = newLine.find(cxx_val_end)) != std::string::npos)
                 {
@@ -166,7 +201,7 @@ static void parseLine(std::ofstream &oSrcFile,
                         newLine.substr(pos + cxx_val_end.length());
                     parseLine(oSrcFile,
                               tailLine,
-                              streamName,
+                              streamStack,
                               viewDataName,
                               cxx_flag,
                               returnFlag);
@@ -181,7 +216,7 @@ static void parseLine(std::ofstream &oSrcFile,
             {
                 std::string oldLine = line.substr(0, pos);
                 parseLine(
-                    oSrcFile, oldLine, streamName, viewDataName, cxx_flag, 0);
+                    oSrcFile, oldLine, streamStack, viewDataName, cxx_flag, 0);
                 std::string newLine =
                     line.substr(pos + sub_view_start.length());
                 if ((pos = newLine.find(sub_view_end)) != std::string::npos)
@@ -199,7 +234,117 @@ static void parseLine(std::ofstream &oSrcFile,
                         newLine.substr(pos + sub_view_end.length());
                     parseLine(oSrcFile,
                               tailLine,
-                              streamName,
+                              streamStack,
+                              viewDataName,
+                              cxx_flag,
+                              returnFlag);
+                }
+                else
+                {
+                    std::cerr << "format err!" << std::endl;
+                    exit(1);
+                }
+            }
+            else if ((pos = line.find(include_view_start)) != std::string::npos)
+            {
+                std::string oldLine = line.substr(0, pos);
+                parseLine(
+                    oSrcFile, oldLine, streamStack, viewDataName, cxx_flag, 0);
+                std::string newLine =
+                    line.substr(pos + include_view_start.length());
+                if ((pos = newLine.find(include_view_end)) != std::string::npos)
+                {
+                    std::string keyName = newLine.substr(0, pos);
+                    auto iter = keyName.begin();
+                    while (iter != keyName.end() && (*iter == ' ' || *iter == '\t'))
+                        ++iter;
+
+                    std::string name;
+                    if(iter != keyName.end() && *iter == '"') {
+                        ++iter;
+                        auto endQuote = std::find(iter, keyName.end(), '"');
+                        name = std::string(iter, endQuote);
+                    } else {
+                        auto iterEnd = iter;
+                        while (iterEnd != keyName.end() && *iterEnd != ' ')
+                            ++iterEnd;
+                        name = std::string(iter, iterEnd);
+                    }
+
+                    outputSubView(oSrcFile, streamName, viewDataName, name);
+                    std::string tailLine =
+                        newLine.substr(pos + include_view_end.length());
+                    parseLine(oSrcFile,
+                              tailLine,
+                              streamStack,
+                              viewDataName,
+                              cxx_flag,
+                              returnFlag);
+                }
+                else
+                {
+                    std::cerr << "format err!" << std::endl;
+                    exit(1);
+                }
+            }
+            else if ((pos = line.find(section_start)) != std::string::npos)
+            {
+                std::string oldLine = line.substr(0, pos);
+                parseLine(
+                    oSrcFile, oldLine, streamStack, viewDataName, cxx_flag, 0);
+                std::string newLine =
+                    line.substr(pos + section_start.length());
+                if ((pos = newLine.find("%>")) != std::string::npos)
+                {
+                    std::string keyName = newLine.substr(0, pos);
+                    auto iter = keyName.begin();
+                    while (iter != keyName.end() && (*iter == ' ' || *iter == '\t'))
+                        ++iter;
+
+                    std::string name;
+                    if(iter != keyName.end() && *iter == '"') {
+                        ++iter;
+                        auto endQuote = std::find(iter, keyName.end(), '"');
+                        name = std::string(iter, endQuote);
+                    } else {
+                        auto iterEnd = iter;
+                        while (iterEnd != keyName.end() && *iterEnd != ' ')
+                            ++iterEnd;
+                        name = std::string(iter, iterEnd);
+                    }
+
+                    outputSectionStart(oSrcFile, streamStack, name);
+                    std::string tailLine =
+                        newLine.substr(pos + 2);
+                    parseLine(oSrcFile,
+                              tailLine,
+                              streamStack,
+                              viewDataName,
+                              cxx_flag,
+                              returnFlag);
+                }
+                else
+                {
+                    std::cerr << "format err!" << std::endl;
+                    exit(1);
+                }
+            }
+            else if ((pos = line.find(section_end)) != std::string::npos)
+            {
+                std::string oldLine = line.substr(0, pos);
+                parseLine(
+                    oSrcFile, oldLine, streamStack, viewDataName, cxx_flag, 0);
+
+                outputSectionEnd(oSrcFile, streamStack, viewDataName);
+
+                std::string newLine =
+                    line.substr(pos + section_end.length());
+                if ((pos = newLine.find("%>")) != std::string::npos)
+                {
+                    std::string tailLine = newLine.substr(pos + 2);
+                    parseLine(oSrcFile,
+                              tailLine,
+                              streamStack,
                               viewDataName,
                               cxx_flag,
                               returnFlag);
@@ -236,7 +381,7 @@ static void parseLine(std::ofstream &oSrcFile,
             if (oldLine.length() > 0)
                 parseLine(oSrcFile,
                           oldLine,
-                          streamName,
+                          streamStack,
                           viewDataName,
                           cxx_flag,
                           returnFlag);
@@ -435,6 +580,11 @@ void create_view::newViewSourceFile(std::ofstream &file,
             if (results.size() > 1)
             {
                 layoutName = results[1].str();
+                if (layoutName.length() >= 2 && layoutName.front() == '"' &&
+                    layoutName.back() == '"')
+                {
+                    layoutName = layoutName.substr(1, layoutName.length() - 2);
+                }
                 break;
             }
         }
@@ -455,24 +605,32 @@ void create_view::newViewSourceFile(std::ofstream &file,
                            [](unsigned char c) { return tolower(c); });
             if ((pos = lowerBuffer.find(cxx_include)) != std::string::npos)
             {
-                // std::cout<<"haha find it!"<<endl;
-                std::string newLine = buffer.substr(pos + cxx_include.length());
-                import_flag = true;
-                if ((pos = newLine.find(cxx_end)) != std::string::npos)
-                {
-                    newLine = newLine.substr(0, pos);
-                    file << newLine << "\n";
-                    break;
+                bool is_include_tag = false;
+                if (lowerBuffer.length() > pos + cxx_include.length()) {
+                     char next = lowerBuffer[pos + cxx_include.length()];
+                     if (next == 'l') is_include_tag = true;
                 }
-                else
-                {
-                    file << newLine << "\n";
+
+                if (is_include_tag) {
+                    // Do nothing, skip
+                } else {
+                    std::string newLine = buffer.substr(pos + cxx_include.length());
+                    import_flag = true;
+                    if ((pos = newLine.find(cxx_end)) != std::string::npos)
+                    {
+                        newLine = newLine.substr(0, pos);
+                        file << newLine << "\n";
+                        break;
+                    }
+                    else
+                    {
+                        file << newLine << "\n";
+                    }
                 }
             }
         }
         else
         {
-            // std::cout<<buffer<<endl;
             if ((pos = buffer.find(cxx_end)) != std::string::npos)
             {
                 std::string newLine = buffer.substr(0, pos);
@@ -481,12 +639,10 @@ void create_view::newViewSourceFile(std::ofstream &file,
             }
             else
             {
-                // std::cout<<"to source file"<<buffer<<endl;
                 file << buffer << "\n";
             }
         }
     }
-    // std::cout<<"import_flag="<<import_flag<<std::endl;
     if (!import_flag)
     {
         infile.clear();
@@ -517,9 +673,12 @@ void create_view::newViewSourceFile(std::ofstream &file,
     // std::string bodyName=className+"_bodystr";
     std::string streamName = className + "_tmp_stream";
 
-    // oSrcFile <<"\tstd::string "<<bodyName<<";\n";
     file << "\tdrogon::OStringStream " << streamName << ";\n";
     file << "\tstd::string layoutName{\"" << layoutName << "\"};\n";
+
+    std::stack<std::pair<std::string, std::string>> streamStack;
+    streamStack.push({streamName, ""});
+
     int cxx_flag = 0;
     for (std::string buffer; std::getline(infile, buffer);)
     {
@@ -537,7 +696,7 @@ void create_view::newViewSourceFile(std::ofstream &file,
             std::regex re("\\{%[ \\t]*(((?!%\\}).)*[^ \\t])[ \\t]*%\\}");
             buffer = std::regex_replace(buffer, re, "<%c++$$$$<<$1;%>");
         }
-        parseLine(file, buffer, streamName, viewDataName, cxx_flag);
+        parseLine(file, buffer, streamStack, viewDataName, cxx_flag);
     }
     file << "if(layoutName.empty())\n{\n";
     file << "std::string ret{std::move(" << streamName << ".str())};\n";
