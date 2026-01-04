@@ -25,39 +25,70 @@ std::shared_ptr<DrTemplateBase> DrTemplateBase::newTemplate(
 {
     LOG_TRACE << "http view name=" << templateName;
     auto l = templateName.length();
+    std::string nameWithoutExt = templateName;
     if (l >= 4 && templateName[l - 4] == '.' && templateName[l - 3] == 'c' &&
         templateName[l - 2] == 's' && templateName[l - 1] == 'p')
     {
-        std::string::size_type pos = 0;
-        std::string newName;
-        newName.reserve(templateName.size());
-        if (templateName[0] == '/' || templateName[0] == '\\')
-        {
-            pos = 1;
-        }
-        else if (templateName[0] == '.' &&
-                 (templateName[1] == '/' || templateName[1] == '\\'))
-        {
-            pos = 2;
-        }
-        while (pos < l - 4)
-        {
-            if (templateName[pos] == '/' || templateName[pos] == '\\')
-            {
-                newName.append("::");
-            }
-            else
-            {
-                newName.append(1, templateName[pos]);
-            }
-            ++pos;
-        }
-        return std::shared_ptr<DrTemplateBase>(dynamic_cast<DrTemplateBase *>(
-            drogon::DrClassMap::newObject(newName)));
+        nameWithoutExt = templateName.substr(0, l - 4);
     }
-    else
+
+    std::string::size_type pos = 0;
+    if (nameWithoutExt.size() > 0 &&
+        (nameWithoutExt[0] == '/' || nameWithoutExt[0] == '\\'))
     {
-        return std::shared_ptr<DrTemplateBase>(dynamic_cast<DrTemplateBase *>(
-            drogon::DrClassMap::newObject(templateName)));
+        pos = 1;
     }
+    else if (nameWithoutExt.size() > 1 && nameWithoutExt[0] == '.' &&
+             (nameWithoutExt[1] == '/' || nameWithoutExt[1] == '\\'))
+    {
+        pos = 2;
+    }
+
+    std::string namespaceName;
+    namespaceName.reserve(nameWithoutExt.size());
+    for (size_t i = pos; i < nameWithoutExt.length(); ++i)
+    {
+        if (nameWithoutExt[i] == '/' || nameWithoutExt[i] == '\\')
+        {
+            namespaceName.append("::");
+        }
+        else
+        {
+            namespaceName.push_back(nameWithoutExt[i]);
+        }
+    }
+
+    auto obj = drogon::DrClassMap::newObject(namespaceName);
+    if (obj)
+    {
+        return std::shared_ptr<DrTemplateBase>(
+            dynamic_cast<DrTemplateBase *>(obj));
+    }
+
+    std::string underscoreName;
+    underscoreName.reserve(nameWithoutExt.size());
+    for (size_t i = pos; i < nameWithoutExt.length(); ++i)
+    {
+        if (nameWithoutExt[i] == '/' || nameWithoutExt[i] == '\\')
+        {
+            underscoreName.push_back('_');
+        }
+        else
+        {
+            underscoreName.push_back(nameWithoutExt[i]);
+        }
+    }
+
+    if (underscoreName != namespaceName)
+    {
+        obj = drogon::DrClassMap::newObject(underscoreName);
+        if (obj)
+        {
+            return std::shared_ptr<DrTemplateBase>(
+                dynamic_cast<DrTemplateBase *>(obj));
+        }
+    }
+
+    return std::shared_ptr<DrTemplateBase>(dynamic_cast<DrTemplateBase *>(
+        drogon::DrClassMap::newObject(templateName)));
 }

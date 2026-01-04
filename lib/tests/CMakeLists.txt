@@ -19,6 +19,7 @@ set(UNITTEST_SOURCES
     unittests/Sha1Test.cc
     unittests/FileTypeTest.cc
     unittests/DrObjectTest.cc
+    unittests/DrTemplateBaseTest.cc
     unittests/HttpFullDateTest.cc
     unittests/MainLoopTest.cc
     unittests/CacheMapTest.cc
