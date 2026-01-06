@@ -52,8 +52,46 @@ std::shared_ptr<DrTemplateBase> DrTemplateBase::newTemplate(
             }
             ++pos;
         }
-        return std::shared_ptr<DrTemplateBase>(dynamic_cast<DrTemplateBase *>(
-            drogon::DrClassMap::newObject(newName)));
+        auto obj = drogon::DrClassMap::newObject(newName);
+        if (obj)
+            return std::shared_ptr<DrTemplateBase>(
+                dynamic_cast<DrTemplateBase *>(obj));
+        // Fallback: try replacing '/' with '_'
+        std::string underscoreName;
+        underscoreName.reserve(templateName.size());
+        pos = 0;
+        if (templateName.length() >= 1 &&
+            (templateName[0] == '/' || templateName[0] == '\\'))
+        {
+            pos = 1;
+        }
+        else if (templateName.length() >= 2 && templateName[0] == '.' &&
+                 (templateName[1] == '/' || templateName[1] == '\\'))
+        {
+            pos = 2;
+        }
+
+        // Check for safety, though l >= 4 is guaranteed by the if condition
+        if (l >= 4)
+        {
+            while (pos < l - 4)
+            {
+                if (templateName[pos] == '/' || templateName[pos] == '\\')
+                {
+                    underscoreName.append("_");
+                }
+                else
+                {
+                    underscoreName.append(1, templateName[pos]);
+                }
+                ++pos;
+            }
+        }
+        auto obj2 = drogon::DrClassMap::newObject(underscoreName);
+        if (obj2)
+            return std::shared_ptr<DrTemplateBase>(
+                dynamic_cast<DrTemplateBase *>(obj2));
+        return nullptr;
     }
     else
     {
