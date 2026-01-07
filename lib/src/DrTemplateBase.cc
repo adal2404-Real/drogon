@@ -52,8 +52,35 @@ std::shared_ptr<DrTemplateBase> DrTemplateBase::newTemplate(
             }
             ++pos;
         }
+        auto obj = drogon::DrClassMap::newObject(newName);
+        if (obj)
+        {
+            return std::shared_ptr<DrTemplateBase>(
+                dynamic_cast<DrTemplateBase *>(obj));
+        }
+        // Try to replace "::" with "_"
+        std::string underscoreName = newName;
+        for (auto &c : underscoreName)
+        {
+            if (c == ':')
+            {
+                c = '_';
+            }
+        }
+        // Remove duplicate underscores if any (since :: became __)
+        std::string finalName;
+        finalName.reserve(underscoreName.size());
+        for (size_t i = 0; i < underscoreName.size(); ++i)
+        {
+            if (underscoreName[i] == '_' && i + 1 < underscoreName.size() &&
+                underscoreName[i + 1] == '_')
+            {
+                continue;
+            }
+            finalName.push_back(underscoreName[i]);
+        }
         return std::shared_ptr<DrTemplateBase>(dynamic_cast<DrTemplateBase *>(
-            drogon::DrClassMap::newObject(newName)));
+            drogon::DrClassMap::newObject(finalName)));
     }
     else
     {
