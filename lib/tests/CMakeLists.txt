@@ -28,6 +28,8 @@ set(UNITTEST_SOURCES
     unittests/SlashRemoverTest.cc
     unittests/UtilitiesTest.cc
     unittests/UuidUnittest.cc
+    unittests/ViewHelpersTest.cc
+    unittests/HtmlMinifierTest.cc
 )
 
 if(DROGON_CXX_STANDARD GREATER_EQUAL 20 AND HAS_COROUTINE)
