@@ -4,6 +4,7 @@ if(WIN32)
 endif(WIN32)
 set(UNITTEST_SOURCES
     unittests/main.cc
+    unittests/ViewHelpersTest.cc
     unittests/Base64Test.cc
     unittests/UrlCodecTest.cc
     unittests/GzipTest.cc

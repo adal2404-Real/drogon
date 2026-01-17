@@ -301,6 +301,8 @@ set(DROGON_SOURCES
     lib/src/TaskTimeoutFlag.cc
     lib/src/TokenBucketRateLimiter.cc
     lib/src/Utilities.cc
+    lib/src/ViewHelpers.cc
+    lib/src/HtmlMinifier.cc
     lib/src/WebSocketClientImpl.cc
     lib/src/WebSocketConnectionImpl.cc
     lib/src/YamlConfigAdapter.cc
@@ -731,6 +733,7 @@ set(DROGON_UTIL_HEADERS
     lib/inc/drogon/utils/HttpConstraint.h
     lib/inc/drogon/utils/OStringStream.h
     lib/inc/drogon/utils/Utilities.h
+    lib/inc/drogon/utils/ViewHelpers.h
     lib/inc/drogon/utils/monitoring.h)
 install(FILES ${DROGON_UTIL_HEADERS}
     DESTINATION ${INSTALL_INCLUDE_DIR}/drogon/utils)
@@ -749,6 +752,7 @@ install(FILES ${DROGON_MONITORING_HEADERS}
 
 set(DROGON_PLUGIN_HEADERS
     lib/inc/drogon/plugins/Plugin.h
+    lib/inc/drogon/plugins/HtmlMinifier.h
     lib/inc/drogon/plugins/Redirector.h
     lib/inc/drogon/plugins/SecureSSLRedirector.h
     lib/inc/drogon/plugins/AccessLogger.h
