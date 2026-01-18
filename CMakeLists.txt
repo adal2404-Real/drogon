@@ -304,6 +304,8 @@ set(DROGON_SOURCES
     lib/src/WebSocketClientImpl.cc
     lib/src/WebSocketConnectionImpl.cc
     lib/src/YamlConfigAdapter.cc
+    lib/src/ViewHelpers.cc
+    lib/src/HtmlMinifier.cc
     lib/src/drogon_test.cc)
 set(private_headers
     lib/src/AOPAdvice.h
@@ -731,6 +733,7 @@ set(DROGON_UTIL_HEADERS
     lib/inc/drogon/utils/HttpConstraint.h
     lib/inc/drogon/utils/OStringStream.h
     lib/inc/drogon/utils/Utilities.h
+    lib/inc/drogon/utils/ViewHelpers.h
     lib/inc/drogon/utils/monitoring.h)
 install(FILES ${DROGON_UTIL_HEADERS}
     DESTINATION ${INSTALL_INCLUDE_DIR}/drogon/utils)
@@ -756,7 +759,8 @@ set(DROGON_PLUGIN_HEADERS
     lib/inc/drogon/plugins/Hodor.h
     lib/inc/drogon/plugins/SlashRemover.h
     lib/inc/drogon/plugins/GlobalFilters.h
-    lib/inc/drogon/plugins/PromExporter.h)
+    lib/inc/drogon/plugins/PromExporter.h
+    lib/inc/drogon/plugins/HtmlMinifier.h)
 
 install(FILES ${DROGON_PLUGIN_HEADERS}
     DESTINATION ${INSTALL_INCLUDE_DIR}/drogon/plugins)
