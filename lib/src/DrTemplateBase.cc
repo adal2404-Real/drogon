@@ -40,6 +40,7 @@ std::shared_ptr<DrTemplateBase> DrTemplateBase::newTemplate(
         {
             pos = 2;
         }
+        auto startPos = pos;
         while (pos < l - 4)
         {
             if (templateName[pos] == '/' || templateName[pos] == '\\')
@@ -52,8 +53,30 @@ std::shared_ptr<DrTemplateBase> DrTemplateBase::newTemplate(
             }
             ++pos;
         }
+        auto obj = drogon::DrClassMap::newObject(newName);
+        if (obj)
+        {
+            return std::shared_ptr<DrTemplateBase>(
+                dynamic_cast<DrTemplateBase *>(obj));
+        }
+
+        std::string underscoreName;
+        underscoreName.reserve(templateName.size());
+        pos = startPos;
+        while (pos < l - 4)
+        {
+            if (templateName[pos] == '/' || templateName[pos] == '\\')
+            {
+                underscoreName.append("_");
+            }
+            else
+            {
+                underscoreName.append(1, templateName[pos]);
+            }
+            ++pos;
+        }
         return std::shared_ptr<DrTemplateBase>(dynamic_cast<DrTemplateBase *>(
-            drogon::DrClassMap::newObject(newName)));
+            drogon::DrClassMap::newObject(underscoreName)));
     }
     else
     {
