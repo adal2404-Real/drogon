@@ -672,17 +672,20 @@ class HttpAppFrameworkImpl final : public HttpAppFramework
     bool isRequestStreamEnabled() const override;
 
   private:
-    void registerHttpController(const std::string &pathPattern,
-                                const internal::HttpBinderBasePtr &binder,
-                                const std::vector<HttpMethod> &validMethods,
-                                const std::vector<std::string> &middlewareNames,
-                                const std::string &handlerName) override;
+    void registerHttpController(
+        const std::string &pathPattern,
+        const internal::HttpBinderBasePtr &binder,
+        const std::vector<HttpMethod> &validMethods,
+        const std::vector<std::string> &middlewareNames,
+        const std::string &handlerName,
+        const std::map<std::string, std::string> &annotations) override;
     void registerHttpControllerViaRegex(
         const std::string &regExp,
         const internal::HttpBinderBasePtr &binder,
         const std::vector<HttpMethod> &validMethods,
         const std::vector<std::string> &middlewareNames,
-        const std::string &handlerName) override;
+        const std::string &handlerName,
+        const std::map<std::string, std::string> &annotations) override;
 
     // We use an uuid string as session id;
     // set sessionTimeout_=0 to make location session valid forever based on

@@ -546,6 +546,7 @@ class DROGON_EXPORT HttpAppFramework : public trantor::NonCopyable
 
         std::vector<HttpMethod> validMethods;
         std::vector<std::string> middlewares;
+        std::map<std::string, std::string> annotations;
         for (auto const &constraint : constraints)
         {
             if (constraint.type() == internal::ConstraintType::HttpMiddleware)
@@ -556,14 +557,28 @@ class DROGON_EXPORT HttpAppFramework : public trantor::NonCopyable
             {
                 validMethods.push_back(constraint.getHttpMethod());
             }
+            else if (constraint.type() ==
+                     internal::ConstraintType::HandlerAnnotation)
+            {
+                annotations.emplace(constraint.getAnnotationName(),
+                                    constraint.getAnnotationValue());
+                if (constraint.getAnnotationName() == "drogon::auth")
+                {
+                    middlewares.push_back("AuthFilter");
+                }
+            }
             else
             {
                 LOG_ERROR << "Invalid controller constraint type";
                 exit(1);
             }
         }
-        registerHttpController(
-            pathPattern, binder, validMethods, middlewares, handlerName);
+        registerHttpController(pathPattern,
+                               binder,
+                               validMethods,
+                               middlewares,
+                               handlerName,
+                               annotations);
         return *this;
     }
 
@@ -597,6 +612,7 @@ class DROGON_EXPORT HttpAppFramework : public trantor::NonCopyable
 
         std::vector<HttpMethod> validMethods;
         std::vector<std::string> middlewares;
+        std::map<std::string, std::string> annotations;
         for (auto const &constraint : constraints)
         {
             if (constraint.type() == internal::ConstraintType::HttpMiddleware)
@@ -607,14 +623,28 @@ class DROGON_EXPORT HttpAppFramework : public trantor::NonCopyable
             {
                 validMethods.push_back(constraint.getHttpMethod());
             }
+            else if (constraint.type() ==
+                     internal::ConstraintType::HandlerAnnotation)
+            {
+                annotations.emplace(constraint.getAnnotationName(),
+                                    constraint.getAnnotationValue());
+                if (constraint.getAnnotationName() == "drogon::auth")
+                {
+                    middlewares.push_back("AuthFilter");
+                }
+            }
             else
             {
                 LOG_ERROR << "Invalid controller constraint type";
                 exit(1);
             }
         }
-        registerHttpControllerViaRegex(
-            regExp, binder, validMethods, middlewares, handlerName);
+        registerHttpControllerViaRegex(regExp,
+                                       binder,
+                                       validMethods,
+                                       middlewares,
+                                       handlerName,
+                                       annotations);
         return *this;
     }
 
@@ -1643,13 +1673,15 @@ class DROGON_EXPORT HttpAppFramework : public trantor::NonCopyable
         const internal::HttpBinderBasePtr &binder,
         const std::vector<HttpMethod> &validMethods = {},
         const std::vector<std::string> &middlewareNames = {},
-        const std::string &handlerName = "") = 0;
+        const std::string &handlerName = "",
+        const std::map<std::string, std::string> &annotations = {}) = 0;
     virtual void registerHttpControllerViaRegex(
         const std::string &regExp,
         const internal::HttpBinderBasePtr &binder,
         const std::vector<HttpMethod> &validMethods,
         const std::vector<std::string> &middlewareNames,
-        const std::string &handlerName) = 0;
+        const std::string &handlerName,
+        const std::map<std::string, std::string> &annotations = {}) = 0;
 };
 
 /// A wrapper of the instance() method
