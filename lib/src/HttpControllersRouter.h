@@ -58,12 +58,14 @@ class HttpControllersRouter : public trantor::NonCopyable
                      const internal::HttpBinderBasePtr &binder,
                      const std::vector<HttpMethod> &validMethods,
                      const std::vector<std::string> &middlewareNames,
-                     const std::string &handlerName = "");
+                     const std::string &handlerName = "",
+                     const std::map<std::string, std::string> &annotations = {});
     void addHttpRegex(const std::string &regExp,
                       const internal::HttpBinderBasePtr &binder,
                       const std::vector<HttpMethod> &validMethods,
                       const std::vector<std::string> &middlewareNames,
-                      const std::string &handlerName = "");
+                      const std::string &handlerName = "",
+                      const std::map<std::string, std::string> &annotations = {});
     RouteResult route(const HttpRequestImplPtr &req);
     RouteResult routeWs(const HttpRequestImplPtr &req);
     std::vector<HttpHandlerInfo> getHandlersInfo() const;

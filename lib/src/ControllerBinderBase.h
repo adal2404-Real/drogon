@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 #include <drogon/IOThreadStorage.h>
 #include <drogon/HttpResponse.h>
 #include "HttpRequestImpl.h"
@@ -33,6 +34,7 @@ struct ControllerBinderBase
     std::string handlerName_;
     std::vector<std::string> middlewareNames_;
     std::vector<std::shared_ptr<HttpMiddlewareBase>> middlewares_;
+    std::map<std::string, std::string> handlerAnnotations_;
     IOThreadStorage<HttpResponsePtr> responseCache_;
     std::shared_ptr<std::string> corsMethods_;
     bool isCORS_{false};

@@ -34,6 +34,10 @@
     registerMethod(&method, path_pattern, {__VA_ARGS__}, false, #method)
 #define ADD_METHOD_VIA_REGEX(method, regex, ...) \
     registerMethodViaRegex(&method, regex, {__VA_ARGS__}, #method)
+#define DROGON_ANNOTATION(name, value) \
+    drogon::internal::HttpConstraint(name, value)
+#define ROLES_ALLOWED(roles) \
+    DROGON_ANNOTATION("drogon::auth", roles)
 #define METHOD_LIST_END \
     return;             \
     }
