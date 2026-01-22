@@ -38,6 +38,9 @@
     return;             \
     }
 
+#define ROLES_ALLOWED(roles) \
+    drogon::internal::HttpConstraint("drogon::auth", roles)
+
 namespace drogon
 {
 /**

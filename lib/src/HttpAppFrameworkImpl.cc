@@ -322,13 +322,18 @@ void HttpAppFrameworkImpl::registerHttpController(
     const internal::HttpBinderBasePtr &binder,
     const std::vector<HttpMethod> &validMethods,
     const std::vector<std::string> &middlewareNames,
-    const std::string &handlerName)
+    const std::string &handlerName,
+    const std::map<std::string, std::string> &annotations)
 {
     assert(!pathPattern.empty());
     assert(binder);
     assert(!routersInit_);
-    HttpControllersRouter::instance().addHttpPath(
-        pathPattern, binder, validMethods, middlewareNames, handlerName);
+    HttpControllersRouter::instance().addHttpPath(pathPattern,
+                                                  binder,
+                                                  validMethods,
+                                                  middlewareNames,
+                                                  handlerName,
+                                                  annotations);
 }
 
 void HttpAppFrameworkImpl::registerHttpControllerViaRegex(
@@ -336,13 +341,18 @@ void HttpAppFrameworkImpl::registerHttpControllerViaRegex(
     const internal::HttpBinderBasePtr &binder,
     const std::vector<HttpMethod> &validMethods,
     const std::vector<std::string> &middlewareNames,
-    const std::string &handlerName)
+    const std::string &handlerName,
+    const std::map<std::string, std::string> &annotations)
 {
     assert(!regExp.empty());
     assert(binder);
     assert(!routersInit_);
-    HttpControllersRouter::instance().addHttpRegex(
-        regExp, binder, validMethods, middlewareNames, handlerName);
+    HttpControllersRouter::instance().addHttpRegex(regExp,
+                                                   binder,
+                                                   validMethods,
+                                                   middlewareNames,
+                                                   handlerName,
+                                                   annotations);
 }
 
 HttpAppFramework &HttpAppFrameworkImpl::setThreadNum(size_t threadNum)
