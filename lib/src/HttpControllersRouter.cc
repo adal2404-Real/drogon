@@ -182,6 +182,7 @@ struct SimpleControllerProcessResult
     std::string lowerPath;
     std::vector<HttpMethod> validMethods;
     std::vector<std::string> middlewares;
+    std::map<std::string, std::string> annotations;
 };
 
 static SimpleControllerProcessResult processSimpleControllerParams(
@@ -195,6 +196,7 @@ static SimpleControllerProcessResult processSimpleControllerParams(
                    [](unsigned char c) { return tolower(c); });
     std::vector<HttpMethod> validMethods;
     std::vector<std::string> middlewareNames;
+    std::map<std::string, std::string> annotations;
     for (const auto &constraint : constraints)
     {
         if (constraint.type() == internal::ConstraintType::HttpMiddleware)
@@ -204,6 +206,24 @@ static SimpleControllerProcessResult processSimpleControllerParams(
         else if (constraint.type() == internal::ConstraintType::HttpMethod)
         {
             validMethods.push_back(constraint.getHttpMethod());
+        }
+        else if (constraint.type() == internal::ConstraintType::Annotation)
+        {
+            annotations.emplace(constraint.getAnnotationName(),
+                                constraint.getAnnotationValue());
+            if (constraint.getAnnotationName() == "drogon::auth")
+            {
+                // Auto-apply AuthFilter if not present?
+                // Or simply assume the user added it?
+                // The spec says: "auto-apply corresponding Security
+                // Filters/Plugins" Let's add AuthFilter
+                if (std::find(middlewareNames.begin(),
+                              middlewareNames.end(),
+                              "AuthFilter") == middlewareNames.end())
+                {
+                    middlewareNames.push_back("AuthFilter");
+                }
+            }
         }
         else
         {
@@ -215,6 +235,7 @@ static SimpleControllerProcessResult processSimpleControllerParams(
         std::move(path),
         std::move(validMethods),
         std::move(middlewareNames),
+        std::move(annotations),
     };
 }
 
@@ -234,6 +255,7 @@ void HttpControllersRouter::registerHttpSimpleController(
     auto binder = std::make_shared<HttpSimpleControllerBinder>();
     binder->handlerName_ = ctrlName;
     binder->middlewareNames_ = result.middlewares;
+    binder->annotations_ = result.annotations;
     drogon::app().getLoop()->queueInLoop([this, binder, ctrlName, path]() {
         auto &object_ = DrClassMap::getSingleInstance(ctrlName);
         auto controller =
@@ -266,6 +288,7 @@ void HttpControllersRouter::registerWebSocketController(
     auto binder = std::make_shared<WebsocketControllerBinder>();
     binder->handlerName_ = ctrlName;
     binder->middlewareNames_ = result.middlewares;
+    binder->annotations_ = result.annotations;
     drogon::app().getLoop()->queueInLoop([this, binder, ctrlName, path]() {
         auto &object_ = DrClassMap::getSingleInstance(ctrlName);
         auto controller =
@@ -294,6 +317,7 @@ void HttpControllersRouter::registerWebSocketControllerRegex(
     auto binder = std::make_shared<WebsocketControllerBinder>();
     binder->handlerName_ = ctrlName;
     binder->middlewareNames_ = result.middlewares;
+    binder->annotations_ = result.annotations;
     drogon::app().getLoop()->queueInLoop([binder, ctrlName]() {
         auto &object_ = DrClassMap::getSingleInstance(ctrlName);
         auto controller =
@@ -312,12 +336,14 @@ void HttpControllersRouter::addHttpRegex(
     const internal::HttpBinderBasePtr &binder,
     const std::vector<HttpMethod> &validMethods,
     const std::vector<std::string> &middlewareNames,
-    const std::string &handlerName)
+    const std::string &handlerName,
+    const std::map<std::string, std::string> &annotations)
 {
     auto binderInfo = std::make_shared<HttpControllerBinder>();
     binderInfo->middlewareNames_ = middlewareNames;
     binderInfo->handlerName_ = handlerName;
     binderInfo->binderPtr_ = binder;
+    binderInfo->annotations_ = annotations;
     drogon::app().getLoop()->queueInLoop([binderInfo]() {
         // Recreate this with the correct number of threads.
         binderInfo->responseCache_ = IOThreadStorage<HttpResponsePtr>();
@@ -331,7 +357,8 @@ void HttpControllersRouter::addHttpPath(
     const internal::HttpBinderBasePtr &binder,
     const std::vector<HttpMethod> &validMethods,
     const std::vector<std::string> &middlewareNames,
-    const std::string &handlerName)
+    const std::string &handlerName,
+    const std::map<std::string, std::string> &annotations)
 {
     // Path is like /api/v1/service/method/{1}/{2}/xxx...
     std::vector<size_t> places;
@@ -548,6 +575,7 @@ void HttpControllersRouter::addHttpPath(
     binderInfo->binderPtr_ = binder;
     binderInfo->parameterPlaces_ = std::move(places);
     binderInfo->queryParametersPlaces_ = std::move(parametersPlaces);
+    binderInfo->annotations_ = annotations;
     drogon::app().getLoop()->queueInLoop([binderInfo]() {
         // Recreate this with the correct number of threads.
         binderInfo->responseCache_ = IOThreadStorage<HttpResponsePtr>();
@@ -610,6 +638,11 @@ RouteResult HttpControllersRouter::route(const HttpRequestImplPtr &req)
             {
                 return {RouteResult::MethodNotAllowed, nullptr};
             }
+            if (!binder->annotations_.empty())
+            {
+                auto &attributes = req->attributes();
+                attributes->insert("drogon::annotations", binder->annotations_);
+            }
             return {RouteResult::Success, binder};
         }
     }
@@ -650,6 +683,11 @@ RouteResult HttpControllersRouter::route(const HttpRequestImplPtr &req)
     if (!binder)
     {
         return {RouteResult::MethodNotAllowed, nullptr};
+    }
+    if (!binder->annotations_.empty())
+    {
+        auto &attributes = req->attributes();
+        attributes->insert("drogon::annotations", binder->annotations_);
     }
     std::vector<std::string> params;
     for (size_t j = 1; j < result.size(); ++j)
@@ -710,6 +748,11 @@ RouteResult HttpControllersRouter::routeWs(const HttpRequestImplPtr &req)
             {
                 return {RouteResult::MethodNotAllowed, nullptr};
             }
+            if (!binder->annotations_.empty())
+            {
+                auto &attributes = req->attributes();
+                attributes->insert("drogon::annotations", binder->annotations_);
+            }
             return {RouteResult::Success, binder};
         }
         else
@@ -725,6 +768,12 @@ RouteResult HttpControllersRouter::routeWs(const HttpRequestImplPtr &req)
                     if (!binder)
                     {
                         return {RouteResult::MethodNotAllowed, nullptr};
+                    }
+                    if (!binder->annotations_.empty())
+                    {
+                        auto &attributes = req->attributes();
+                        attributes->insert("drogon::annotations",
+                                           binder->annotations_);
                     }
                     return {RouteResult::Success, binder};
                 }

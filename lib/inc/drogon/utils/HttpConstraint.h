@@ -25,7 +25,8 @@ enum class ConstraintType
 {
     None,
     HttpMethod,
-    HttpMiddleware
+    HttpMiddleware,
+    Annotation
 };
 
 class HttpConstraint
@@ -47,6 +48,13 @@ class HttpConstraint
     {
     }
 
+    HttpConstraint(const std::string &name, const std::string &value)
+        : type_(ConstraintType::Annotation),
+          annotationName_(name),
+          annotationValue_(value)
+    {
+    }
+
     ConstraintType type() const
     {
         return type_;
@@ -62,10 +70,22 @@ class HttpConstraint
         return middlewareName_;
     }
 
+    const std::string &getAnnotationName() const
+    {
+        return annotationName_;
+    }
+
+    const std::string &getAnnotationValue() const
+    {
+        return annotationValue_;
+    }
+
   private:
     ConstraintType type_{ConstraintType::None};
     HttpMethod method_{HttpMethod::Invalid};
     std::string middlewareName_;
+    std::string annotationName_;
+    std::string annotationValue_;
 };
 }  // namespace internal
 }  // namespace drogon
