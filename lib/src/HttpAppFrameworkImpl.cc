@@ -431,9 +431,7 @@ HttpAppFramework &HttpAppFrameworkImpl::loadConfigFile(
     const std::string &fileName)
 {
     ConfigLoader loader(fileName);
-    loader.load();
-    jsonConfig_ = loader.jsonValue();
-    return *this;
+    return loadConfigJson(loader.jsonValue());
 }
 
 HttpAppFramework &HttpAppFrameworkImpl::loadConfigJson(const Json::Value &data)
