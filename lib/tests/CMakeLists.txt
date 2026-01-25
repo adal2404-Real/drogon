@@ -48,6 +48,8 @@ endif()
 
 add_executable(unittest ${UNITTEST_SOURCES})
 
+add_executable(config_test unittests/ConfigLoadingTest.cc)
+
 if (BUILD_CTL)
   set(INTEGRATION_TEST_CLIENT_SOURCES
       integration_test/client/main.cc
@@ -126,7 +128,7 @@ add_executable(cookie_same_site ${COOKIE_SAME_SITE})
 
 add_executable(real_ip_resolver RealIpResolverTest.cc)
 
-set(tests unittest cookie_same_site real_ip_resolver)
+set(tests unittest cookie_same_site real_ip_resolver config_test)
 if (BUILD_CTL)
   list(APPEND tests integration_test_server integration_test_client)
 endif(BUILD_CTL)
@@ -137,3 +139,4 @@ set_property(TARGET ${tests} PROPERTY CXX_EXTENSIONS OFF)
 ParseAndAddDrogonTests(unittest)
 ParseAndAddDrogonTests(cookie_same_site)
 ParseAndAddDrogonTests(real_ip_resolver)
+ParseAndAddDrogonTests(config_test)
