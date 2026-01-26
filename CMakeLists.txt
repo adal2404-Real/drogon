@@ -187,9 +187,17 @@ endif()
 
 
 # jsoncpp
-find_package(Jsoncpp REQUIRED)
-target_link_libraries(${PROJECT_NAME} PUBLIC Jsoncpp_lib)
-list(APPEND INCLUDE_DIRS_FOR_DYNAMIC_VIEW ${JSONCPP_INCLUDE_DIRS})
+find_package(Jsoncpp QUIET)
+if(Jsoncpp_FOUND)
+    target_link_libraries(${PROJECT_NAME} PUBLIC Jsoncpp_lib)
+    list(APPEND INCLUDE_DIRS_FOR_DYNAMIC_VIEW ${JSONCPP_INCLUDE_DIRS})
+else()
+    message(STATUS "Jsoncpp not found, using bundled version")
+    add_subdirectory(third_party/jsoncpp)
+    target_link_libraries(${PROJECT_NAME} PUBLIC jsoncpp_static)
+    target_include_directories(${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/jsoncpp/include>)
+    list(APPEND INCLUDE_DIRS_FOR_DYNAMIC_VIEW ${CMAKE_CURRENT_SOURCE_DIR}/third_party/jsoncpp/include)
+endif()
 
 # yamlcpp
 if(BUILD_YAML_CONFIG)
