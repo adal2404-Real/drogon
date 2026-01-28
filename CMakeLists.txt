@@ -303,6 +303,7 @@ set(DROGON_SOURCES
     lib/src/Utilities.cc
     lib/src/WebSocketClientImpl.cc
     lib/src/WebSocketConnectionImpl.cc
+    lib/src/HubClient.cc
     lib/src/YamlConfigAdapter.cc
     lib/src/drogon_test.cc)
 set(private_headers
@@ -592,6 +593,8 @@ set(DROGON_HEADERS
     lib/inc/drogon/WebSocketClient.h
     lib/inc/drogon/WebSocketConnection.h
     lib/inc/drogon/WebSocketController.h
+    lib/inc/drogon/Hub.h
+    lib/inc/drogon/HubClient.h
     lib/inc/drogon/drogon.h
     ${CMAKE_CURRENT_BINARY_DIR}/lib/inc/drogon/version.h
     lib/inc/drogon/drogon_callbacks.h
