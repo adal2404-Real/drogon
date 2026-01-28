@@ -43,7 +43,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND BUILD_SHARED_LIBS)
 else()
   set(UNITTEST_SOURCES ${UNITTEST_SOURCES} ../src/HttpFileImpl.cc
                        unittests/HttpFileTest.cc
-                       unittests/WebsocketResponseTest.cc)
+                       unittests/WebsocketResponseTest.cc
+                       unittests/HubTest.cc)
 endif()
 
 add_executable(unittest ${UNITTEST_SOURCES})
