@@ -20,6 +20,7 @@
 #include <string>
 #include <algorithm>
 #include <regex>
+#include <stack>
 
 static const std::string cxx_include = "<%inc";
 static const std::string cxx_end = "%>";
@@ -435,6 +436,11 @@ void create_view::newViewSourceFile(std::ofstream &file,
             if (results.size() > 1)
             {
                 layoutName = results[1].str();
+                if (layoutName.size() >= 2 && layoutName.front() == '"' &&
+                    layoutName.back() == '"')
+                {
+                    layoutName = layoutName.substr(1, layoutName.size() - 2);
+                }
                 break;
             }
         }
@@ -455,6 +461,11 @@ void create_view::newViewSourceFile(std::ofstream &file,
                            [](unsigned char c) { return tolower(c); });
             if ((pos = lowerBuffer.find(cxx_include)) != std::string::npos)
             {
+                if (lowerBuffer.length() > pos + cxx_include.length() &&
+                    lowerBuffer[pos + cxx_include.length()] == 'l')
+                {
+                    continue;
+                }
                 // std::cout<<"haha find it!"<<endl;
                 std::string newLine = buffer.substr(pos + cxx_include.length());
                 import_flag = true;
@@ -513,7 +524,9 @@ void create_view::newViewSourceFile(std::ofstream &file,
     std::string viewDataName = className + "_view_data";
     // virtual std::string genText(const DrTemplateData &)
     file << "std::string " << className << "::genText(const DrTemplateData& "
-         << viewDataName << ")\n{\n";
+         << viewDataName << "_orig)\n{\n";
+    file << "\tHttpViewData " << viewDataName << " = " << viewDataName
+         << "_orig;\n";
     // std::string bodyName=className+"_bodystr";
     std::string streamName = className + "_tmp_stream";
 
@@ -521,6 +534,12 @@ void create_view::newViewSourceFile(std::ofstream &file,
     file << "\tdrogon::OStringStream " << streamName << ";\n";
     file << "\tstd::string layoutName{\"" << layoutName << "\"};\n";
     int cxx_flag = 0;
+    std::string currentStream = streamName;
+    std::stack<std::pair<std::string, std::string>> sectionStack;
+    std::regex sectionReg("<%section[ \\t]+\"([^\"]+)\"[ \\t]*%>");
+    std::regex sectionEndReg("<%endsection[ \\t]*%>");
+    std::regex includeReg("<%include[ \\t]+\"([^\"]+)\"[ \\t]*%>");
+
     for (std::string buffer; std::getline(infile, buffer);)
     {
         if (buffer.length() > 0)
@@ -534,10 +553,96 @@ void create_view::newViewSourceFile(std::ofstream &file,
                 }
             }
 
+            // Handle includes
+            buffer = std::regex_replace(
+                buffer,
+                includeReg,
+                "<%c++{auto templ=DrTemplateBase::newTemplate(\"$1\");if("
+                "templ)$$$$<<templ->genText(@@);}%>");
+
             std::regex re("\\{%[ \\t]*(((?!%\\}).)*[^ \\t])[ \\t]*%\\}");
             buffer = std::regex_replace(buffer, re, "<%c++$$$$<<$1;%>");
         }
-        parseLine(file, buffer, streamName, viewDataName, cxx_flag);
+
+        while (true)
+        {
+            if (cxx_flag != 0 || buffer.empty())
+            {
+                parseLine(file, buffer, currentStream, viewDataName, cxx_flag);
+                break;
+            }
+
+            std::smatch res;
+            std::string::size_type secStart = std::string::npos;
+            std::string::size_type secEnd = std::string::npos;
+            bool isSection = false;
+            bool isEndSection = false;
+            std::string sectionName;
+
+            if (std::regex_search(buffer, res, sectionReg))
+            {
+                secStart = res.position();
+                secEnd = secStart + res.length();
+                isSection = true;
+                sectionName = res[1].str();
+            }
+
+            std::smatch resEnd;
+            if (std::regex_search(buffer, resEnd, sectionEndReg))
+            {
+                if (!isSection || resEnd.position() < secStart)
+                {
+                    secStart = resEnd.position();
+                    secEnd = secStart + resEnd.length();
+                    isSection = false;
+                    isEndSection = true;
+                }
+            }
+
+            if (!isSection && !isEndSection)
+            {
+                parseLine(file, buffer, currentStream, viewDataName, cxx_flag);
+                break;
+            }
+
+            // Check if C++ block starts before the section tag
+            if (buffer.substr(0, secStart).find("<%c++") != std::string::npos)
+            {
+                parseLine(file, buffer, currentStream, viewDataName, cxx_flag);
+                break;
+            }
+
+            std::string head = buffer.substr(0, secStart);
+            if (!head.empty())
+            {
+                parseLine(file, head, currentStream, viewDataName, cxx_flag, 0);
+            }
+
+            if (isSection)
+            {
+                file << "{\n\tdrogon::OStringStream _section_stream;\n";
+                sectionStack.push({"_section_stream", sectionName});
+                currentStream = "_section_stream";
+            }
+            else if (isEndSection)
+            {
+                if (!sectionStack.empty())
+                {
+                    auto top = sectionStack.top();
+                    file << "\t" << viewDataName << "[\"" << top.second
+                         << "\"] = _section_stream.str();\n";
+                    file << "}\n";
+                    sectionStack.pop();
+                    currentStream = sectionStack.empty()
+                                        ? streamName
+                                        : sectionStack.top().first;
+                }
+            }
+            if (secEnd < buffer.length())
+                buffer = buffer.substr(secEnd);
+            else
+                break;
+        }
     }
     file << "if(layoutName.empty())\n{\n";
     file << "std::string ret{std::move(" << streamName << ".str())};\n";
