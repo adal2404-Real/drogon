@@ -29,8 +29,9 @@ void HttpSimpleControllerBinder::handleRequest(
 
     try
     {
-        auto cb = callback;  // copy
-        controller_->asyncHandleHttpRequest(req, std::move(cb));
+        req->setResponseCallback(std::move(callback));
+        controller_->asyncHandleHttpRequest(
+            req, [req](const HttpResponsePtr &resp) { req->sendResponse(resp); });
     }
     catch (const std::exception &e)
     {
@@ -48,9 +49,11 @@ void HttpControllerBinder::handleRequest(
     const HttpRequestImplPtr &req,
     std::function<void(const HttpResponsePtr &)> &&callback) const
 {
+    req->setResponseCallback(std::move(callback));
     auto &paramsVector = req->getRoutingParameters();
     std::deque<std::string> params(paramsVector.begin(), paramsVector.end());
-    binderPtr_->handleHttpRequest(params, req, std::move(callback));
+    binderPtr_->handleHttpRequest(
+        params, req, [req](const HttpResponsePtr &resp) { req->sendResponse(resp); });
 }
 
 void WebsocketControllerBinder::handleRequest(

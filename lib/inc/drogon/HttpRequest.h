@@ -34,6 +34,9 @@
 
 namespace drogon
 {
+class HttpResponse;
+using HttpResponsePtr = std::shared_ptr<HttpResponse>;
+
 class HttpRequest;
 using HttpRequestPtr = std::shared_ptr<HttpRequest>;
 
@@ -509,6 +512,26 @@ class DROGON_EXPORT HttpRequest
 
     virtual const std::weak_ptr<trantor::TcpConnection> &getConnectionPtr()
         const noexcept = 0;
+
+    /**
+     * @brief Set the response callback. This is used by the framework to store
+     * the callback function that sends the response.
+     * @param cb The callback function.
+     */
+    virtual void setResponseCallback(std::function<void(const HttpResponsePtr &)> &&cb) = 0;
+
+    /**
+     * @brief Create a wrapper for the response callback to allow sending the
+     * response asynchronously from another thread later.
+     * @return std::function<void(const HttpResponsePtr &)> The wrapper.
+     */
+    virtual std::function<void(const HttpResponsePtr &)> newAsyncLater() = 0;
+
+    /**
+     * @brief Send response using the stored callback.
+     * @param resp The response to send.
+     */
+    virtual void sendResponse(const HttpResponsePtr &resp) = 0;
 
     virtual ~HttpRequest()
     {

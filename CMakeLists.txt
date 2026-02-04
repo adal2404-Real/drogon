@@ -275,6 +275,7 @@ set(DROGON_SOURCES
     lib/src/HttpRequestImpl.cc
     lib/src/HttpRequestParser.cc
     lib/src/RequestStream.cc
+    lib/src/TaskScheduler.cc
     lib/src/HttpResponseImpl.cc
     lib/src/HttpResponseParser.cc
     lib/src/HttpServer.cc
@@ -578,6 +579,7 @@ set(DROGON_HEADERS
     lib/inc/drogon/HttpMiddleware.h
     lib/inc/drogon/HttpRequest.h
     lib/inc/drogon/RequestStream.h
+    lib/inc/drogon/TaskScheduler.h
     lib/inc/drogon/HttpResponse.h
     lib/inc/drogon/HttpSimpleController.h
     lib/inc/drogon/HttpTypes.h
