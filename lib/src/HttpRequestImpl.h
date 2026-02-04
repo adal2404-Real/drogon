@@ -551,6 +551,15 @@ class HttpRequestImpl : public HttpRequest
         matchedPathPattern_ = pathPattern;
     }
 
+    void setResponseCallback(std::function<void(const HttpResponsePtr &)> &&cb) override
+    {
+        responseCallback_ = std::move(cb);
+    }
+
+    std::function<void(const HttpResponsePtr &)> newAsyncLater() override;
+
+    void sendResponse(const HttpResponsePtr &resp) override;
+
     const std::string &expect() const
     {
         static const std::string none{""};
@@ -727,6 +736,7 @@ class HttpRequestImpl : public HttpRequest
 
     ReqStreamStatus streamStatus_{ReqStreamStatus::None};
     std::function<void()> streamFinishCb_;
+    std::function<void(const HttpResponsePtr &)> responseCallback_;
     RequestStreamReaderPtr streamReaderPtr_;
     std::exception_ptr streamExceptionPtr_;
     bool startProcessing_{false};

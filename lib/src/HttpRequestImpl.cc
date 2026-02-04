@@ -1114,3 +1114,22 @@ void HttpRequestImpl::quitStreamMode()
     assert(!streamReaderPtr_);
     streamStatus_ = ReqStreamStatus::None;
 }
+
+std::function<void(const HttpResponsePtr &)> HttpRequestImpl::newAsyncLater()
+{
+    if (!responseCallback_)
+    {
+        LOG_ERROR << "Response callback is empty. Make sure to call newAsyncLater() inside the handler.";
+        return [](const HttpResponsePtr &) {
+        };
+    }
+    return responseCallback_;
+}
+
+void HttpRequestImpl::sendResponse(const HttpResponsePtr &resp)
+{
+    if (responseCallback_)
+    {
+        responseCallback_(resp);
+    }
+}
