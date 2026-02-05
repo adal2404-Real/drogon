@@ -10,6 +10,7 @@ brotli/1.0.9
 
 [generators]
 CMakeToolchain
+CMakeDeps
 
 [options]
 

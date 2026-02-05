@@ -188,6 +188,11 @@ endif()
 
 # jsoncpp
 find_package(Jsoncpp REQUIRED)
+if(TARGET JsonCpp::JsonCpp)
+    if(NOT TARGET Jsoncpp_lib)
+        add_library(Jsoncpp_lib ALIAS JsonCpp::JsonCpp)
+    endif()
+endif()
 target_link_libraries(${PROJECT_NAME} PUBLIC Jsoncpp_lib)
 list(APPEND INCLUDE_DIRS_FOR_DYNAMIC_VIEW ${JSONCPP_INCLUDE_DIRS})
 
@@ -264,6 +269,7 @@ set(DROGON_SOURCES
     lib/src/GlobalFilters.cc
     lib/src/Histogram.cc
     lib/src/Hodor.cc
+    lib/src/HtmlMinifier.cc
     lib/src/HttpAppFrameworkImpl.cc
     lib/src/HttpBinder.cc
     lib/src/HttpClientImpl.cc
@@ -301,6 +307,7 @@ set(DROGON_SOURCES
     lib/src/TaskTimeoutFlag.cc
     lib/src/TokenBucketRateLimiter.cc
     lib/src/Utilities.cc
+    lib/src/ViewHelpers.cc
     lib/src/WebSocketClientImpl.cc
     lib/src/WebSocketConnectionImpl.cc
     lib/src/YamlConfigAdapter.cc
@@ -731,6 +738,7 @@ set(DROGON_UTIL_HEADERS
     lib/inc/drogon/utils/HttpConstraint.h
     lib/inc/drogon/utils/OStringStream.h
     lib/inc/drogon/utils/Utilities.h
+    lib/inc/drogon/utils/ViewHelpers.h
     lib/inc/drogon/utils/monitoring.h)
 install(FILES ${DROGON_UTIL_HEADERS}
     DESTINATION ${INSTALL_INCLUDE_DIR}/drogon/utils)
@@ -754,6 +762,7 @@ set(DROGON_PLUGIN_HEADERS
     lib/inc/drogon/plugins/AccessLogger.h
     lib/inc/drogon/plugins/RealIpResolver.h
     lib/inc/drogon/plugins/Hodor.h
+    lib/inc/drogon/plugins/HtmlMinifier.h
     lib/inc/drogon/plugins/SlashRemover.h
     lib/inc/drogon/plugins/GlobalFilters.h
     lib/inc/drogon/plugins/PromExporter.h)
