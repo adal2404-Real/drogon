@@ -27,6 +27,7 @@ set(UNITTEST_SOURCES
     unittests/MultiPartParserTest.cc
     unittests/SlashRemoverTest.cc
     unittests/UtilitiesTest.cc
+    unittests/ViewHelpersTest.cc
     unittests/UuidUnittest.cc
 )
 
